@@ -15,6 +15,9 @@ app.use(cors());
 // Express JSON Parser: แปลง JSON ใน Request Body ให้เป็น Object
 app.use(express.json());
 
+// ===== Routes ต้องมาก่อน Static Files =====
+// (จะเพิ่ม routes ด้านล่าง)
+
 // Static Files: เสิร์ฟไฟล์ HTML, CSS, JS จากโฟลเดอร์ client
 app.use(express.static(path.join(__dirname, '../client')));
 
@@ -58,37 +61,33 @@ function writeData(data) {
     }
 }
 
-// Derangement Algorithm 
-function generateDerangementNoTwoCycle(arr) {
+// ===== Derangement Algorithm สำหรับจับฉลาก =====
+function generateDerangement(arr) {
+    // สร้างสำเนาของอาร์เรย์เพื่อไม่ให้กระทบต้นฉบับ
     let original = [...arr];
     let result = [...arr];
-    let maxAttempts = 2000;
+    let maxAttempts = 1000; // จำกัดจำนวนครั้งในการลอง
     let attempts = 0;
 
+    // วนลองสุ่มจนกว่าจะได้ผลลัพธ์ที่ถูกต้อง
     while (attempts < maxAttempts) {
-        // Shuffle
+        // Fisher-Yates Shuffle Algorithm
         for (let i = result.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
+            // Swap elements
             [result[i], result[j]] = [result[j], result[i]];
         }
 
+        // ตรวจสอบว่าไม่มีใครได้ของตัวเองหรือไม่
         let isValid = true;
-
         for (let i = 0; i < original.length; i++) {
-            // ❌ ห้ามได้ของตัวเอง
             if (original[i] === result[i]) {
                 isValid = false;
                 break;
             }
-
-            // ❌ ห้าม 2-cycle
-            const j = original.indexOf(result[i]);
-            if (result[j] === original[i]) {
-                isValid = false;
-                break;
-            }
         }
 
+        // ถ้าถูกต้อง ส่งผลลัพธ์กลับ
         if (isValid) {
             return result;
         }
@@ -96,19 +95,54 @@ function generateDerangementNoTwoCycle(arr) {
         attempts++;
     }
 
+    // ถ้าสุ่มไม่สำเร็จ (เกือบจะเป็นไปไม่ได้กับจำนวนคนมากกว่า 2)
     return null;
 }
+
+// ========================================
+// ===== PAGE ROUTES (HTML Pages) =====
+// ========================================
+
+// หน้าแรก - Redirect ไปหน้า Participant
+app.get('/', (req, res) => {
+    res.redirect('/participant');
+});
+
+// หน้า Participant
+app.get('/participant', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/participant.html'));
+});
+
+// หน้า Admin
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/admin.html'));
+});
 
 // ========================================
 // ===== API ENDPOINTS (RESTful API) =====
 // ========================================
 
-// ===== 1. GET / - หน้าแรก =====
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/index.html'));
+// ===== รหัสผ่านแอดมิน (ในโปรเจคจริงควรเก็บใน environment variable) =====
+const ADMIN_PASSWORD = 'admin2026';
+
+// ===== API: ตรวจสอบรหัสผ่านแอดมิน =====
+app.post('/api/admin/verify', (req, res) => {
+    const { password } = req.body;
+
+    if (password === ADMIN_PASSWORD) {
+        res.json({
+            success: true,
+            message: 'เข้าสู่ระบบสำเร็จ'
+        });
+    } else {
+        res.status(401).json({
+            success: false,
+            message: 'รหัสผ่านไม่ถูกต้อง'
+        });
+    }
 });
 
-// ===== 2. GET /api/status - ดูสถานะระบบ =====
+// ===== 1. GET /api/status - ดูสถานะระบบ =====
 app.get('/api/status', (req, res) => {
     const data = readData();
     
@@ -122,7 +156,7 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-// ===== 3. POST /api/register - ลงทะเบียนผู้เข้าร่วม =====
+// ===== 2. POST /api/register - ลงทะเบียนผู้เข้าร่วม =====
 app.post('/api/register', (req, res) => {
     const { name } = req.body;
 
@@ -166,7 +200,7 @@ app.post('/api/register', (req, res) => {
     }
 });
 
-// ===== 4. GET /api/participants - ดูรายชื่อผู้เข้าร่วมทั้งหมด =====
+// ===== 3. GET /api/participants - ดูรายชื่อผู้เข้าร่วมทั้งหมด =====
 app.get('/api/participants', (req, res) => {
     const data = readData();
     
@@ -179,7 +213,7 @@ app.get('/api/participants', (req, res) => {
     });
 });
 
-// ===== 5. DELETE /api/participants/:name - ลบผู้เข้าร่วม =====
+// ===== 4. DELETE /api/participants/:name - ลบผู้เข้าร่วม =====
 app.delete('/api/participants/:name', (req, res) => {
     const { name } = req.params;
     const data = readData();
@@ -222,7 +256,7 @@ app.delete('/api/participants/:name', (req, res) => {
     }
 });
 
-// ===== 6. POST /api/draw - จับฉลาก =====
+// ===== 5. POST /api/draw - จับฉลาก =====
 app.post('/api/draw', (req, res) => {
     const data = readData();
 
@@ -235,7 +269,7 @@ app.post('/api/draw', (req, res) => {
     }
 
     // สุ่มจับฉลาก
-    const receivers = generateDerangementNoTwoCycle(data.participants);
+    const receivers = generateDerangement(data.participants);
 
     if (!receivers) {
         return res.status(500).json({
@@ -271,7 +305,7 @@ app.post('/api/draw', (req, res) => {
     }
 });
 
-// ===== 7. GET /api/result/:name - ดูผลการจับฉลากของแต่ละคน =====
+// ===== 6. GET /api/result/:name - ดูผลการจับฉลากของแต่ละคน =====
 app.get('/api/result/:name', (req, res) => {
     const { name } = req.params;
     const data = readData();
@@ -304,7 +338,7 @@ app.get('/api/result/:name', (req, res) => {
     });
 });
 
-// ===== 8. DELETE /api/reset - รีเซ็ตทั้งหมด =====
+// ===== 7. DELETE /api/reset - รีเซ็ตทั้งหมด =====
 app.delete('/api/reset', (req, res) => {
     const initialData = {
         participants: [],
@@ -340,19 +374,26 @@ app.use((err, req, res, next) => {
 app.use((req, res) => {
     res.status(404).json({
         success: false,
-        message: 'ไม่พบ API Endpoint นี้'
+        message: 'ไม่พบหน้าที่ต้องการ'
     });
 });
 
 // ===== เริ่มต้น Server =====
 app.listen(PORT, () => {
-    console.log(`🎄 Secret Santa Server กำลังทำงานที่ http://localhost:${PORT}`);
-    console.log(`📋 API Documentation:`);
-    console.log(`   GET    /api/status             - ดูสถานะระบบ`);
-    console.log(`   POST   /api/register           - ลงทะเบียนผู้เข้าร่วม`);
-    console.log(`   GET    /api/participants       - ดูรายชื่อทั้งหมด`);
-    console.log(`   DELETE /api/participants/:name - ลบผู้เข้าร่วม`);
-    console.log(`   POST   /api/draw               - จับฉลาก`);
-    console.log(`   GET    /api/result/:name       - ดูผลการจับฉลาก`);
-    console.log(`   DELETE /api/reset              - รีเซ็ตระบบ`);
+    console.log(`\n🎄 =======================================`);
+    console.log(`🎄 Secret Santa Server กำลังทำงาน!`);
+    console.log(`🎄 =======================================\n`);
+    console.log(`👥 สำหรับพนักงาน:    http://localhost:${PORT}/participant`);
+    console.log(`🔐 สำหรับแอดมิน:     http://localhost:${PORT}/admin`);
+    console.log(`📱 รหัสผ่านแอดมิน:   ${ADMIN_PASSWORD}\n`);
+    console.log(`📋 API Endpoints:`);
+    console.log(`   POST   /api/admin/verify        - ตรวจสอบรหัสแอดมิน`);
+    console.log(`   GET    /api/status              - ดูสถานะระบบ`);
+    console.log(`   POST   /api/register            - ลงทะเบียนผู้เข้าร่วม`);
+    console.log(`   GET    /api/participants        - ดูรายชื่อทั้งหมด`);
+    console.log(`   DELETE /api/participants/:name  - ลบผู้เข้าร่วม`);
+    console.log(`   POST   /api/draw                - จับฉลาก`);
+    console.log(`   GET    /api/result/:name        - ดูผลการจับฉลาก`);
+    console.log(`   DELETE /api/reset               - รีเซ็ตระบบ`);
+    console.log(`\n🎄 =======================================\n`);
 });

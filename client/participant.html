@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎁 Secret Santa 2026 - ลงทะเบียน</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- เอฟเฟกต์หิมะตก -->
+    <div class="snow-container" id="snowContainer"></div>
+
+    <div class="container">
+        <!-- ส่วนหัว -->
+        <div class="header">
+            <h1>🎁 Secret Santa 2026</h1>
+            <p>ระบบจับฉลากแลกของขวัญปีใหม่</p>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">กำลังเชื่อมต่อ...</span>
+            </div>
+        </div>
+
+        <!-- หน้าลงทะเบียน -->
+        <div id="register-view" class="view active">
+            <div class="card">
+                <h2 style="color: var(--color-accent); margin-bottom: 1.5rem;">ลงทะเบียนเข้าร่วม</h2>
+                
+                <div id="register-alert"></div>
+
+                <form onsubmit="registerParticipant(event)" id="registerForm">
+                    <div class="form-group">
+                        <label for="participant-name">ชื่อของคุณ</label>
+                        <input 
+                            type="text" 
+                            id="participant-name" 
+                            placeholder="กรอกชื่อ-นามสกุล"
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span>✨ ลงทะเบียน</span>
+                    </button>
+                </form>
+
+                <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                    <p style="color: var(--color-text-dim); text-align: center; margin-bottom: 1rem;">
+                        💡 หลังจากลงทะเบียนแล้ว รอผู้จัดให้กดปุ่ม "Happy New Year 2026" 
+                        <br>แล้วกลับมาดูว่าคุณได้จับฉลากได้ของใคร
+                    </p>
+                    <button onclick="checkMyResult()" class="btn btn-success" style="width: 100%;">
+                        <span>🔍 ตรวจสอบผลของฉัน</span>
+                    </button>
+                </div>
+
+                <!-- ข้อมูลสำหรับแอดมิน -->
+                <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                    <p style="color: var(--color-text-dim); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        🔐 คุณเป็นผู้จัดงานหรือไม่?
+                    </p>
+                    <a href="/admin" class="btn" style="background: rgba(255, 255, 255, 0.1); color: var(--color-text); display: inline-block; text-decoration: none;">
+                        <span>เข้าสู่หน้าแอดมิน</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- หน้าแสดงผลลัพธ์ -->
+        <div id="result-view" class="view">
+            <div class="card">
+                <div id="result-content"></div>
+                <div style="margin-top: 2rem; text-align: center;">
+                    <button onclick="showRegisterView()" class="btn btn-success">
+                        <span>🎄 กลับหน้าหลัก</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- โหลด JavaScript -->
+    <script src="participant.js"></script>
+</body>
+</html>

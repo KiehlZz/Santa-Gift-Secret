@@ -2,7 +2,6 @@
 const API_BASE_URL = 'http://localhost:3000/api';
 
 // ===== ตัวแปรสำหรับเก็บสถานะ =====
-let currentView = 'register';
 let systemStatus = {
     isDrawn: false,
     totalParticipants: 0,
@@ -10,13 +9,6 @@ let systemStatus = {
 };
 
 // ===== ฟังก์ชันสำหรับเรียก API =====
-
-/**
- * ฟังก์ชันหลักสำหรับเรียก API แบบ Generic
- * @param {string} endpoint - API endpoint (เช่น '/status', '/register')
- * @param {string} method - HTTP Method (GET, POST, PUT, DELETE)
- * @param {object} body - ข้อมูลที่จะส่งไป (สำหรับ POST, PUT)
- */
 async function callAPI(endpoint, method = 'GET', body = null) {
     try {
         const options = {
@@ -26,20 +18,14 @@ async function callAPI(endpoint, method = 'GET', body = null) {
             }
         };
 
-        // ถ้ามีข้อมูลที่จะส่ง ให้แปลงเป็น JSON
         if (body) {
             options.body = JSON.stringify(body);
         }
 
-        // เรียก API
         const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-        
-        // แปลง Response เป็น JSON
         const data = await response.json();
 
-        // อัพเดทสถานะการเชื่อมต่อ
         updateConnectionStatus(true);
-
         return data;
     } catch (error) {
         console.error('API Error:', error);
@@ -73,36 +59,75 @@ function showAlert(containerId, message, type) {
         </div>
     `;
     
-    // ลบข้อความหลัง 5 วินาที
     setTimeout(() => {
         container.innerHTML = '';
     }, 5000);
 }
 
 // ===== ฟังก์ชันสลับหน้า =====
-function switchView(viewName) {
-    currentView = viewName;
+function showLoginView() {
+    document.getElementById('login-view').classList.add('active');
+    document.getElementById('admin-view').classList.remove('active');
+}
 
-    // ซ่อนทุกหน้า
-    document.querySelectorAll('.view').forEach(view => {
-        view.classList.remove('active');
-    });
+function showAdminView() {
+    document.getElementById('login-view').classList.remove('active');
+    document.getElementById('admin-view').classList.add('active');
+}
+
+// ===== API: Login แอดมิน =====
+async function adminLogin(event) {
+    event.preventDefault();
     
-    // ลบ active class จากทุกปุ่ม
-    document.querySelectorAll('.nav-tabs button').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    const passwordInput = document.getElementById('admin-password');
+    const password = passwordInput.value;
 
-    // แสดงหน้าที่เลือก
-    if (viewName === 'register') {
-        document.getElementById('register-view').classList.add('active');
-        document.getElementById('tab-register').classList.add('active');
-    } else if (viewName === 'admin') {
-        document.getElementById('admin-view').classList.add('active');
-        document.getElementById('tab-admin').classList.add('active');
-        loadSystemStatus(); // โหลดสถานะระบบ
-    } else if (viewName === 'result') {
-        document.getElementById('result-view').classList.add('active');
+    if (!password) {
+        showAlert('login-alert', '⚠️ กรุณากรอกรหัสผ่าน', 'error');
+        return;
+    }
+
+    try {
+        const response = await callAPI('/admin/verify', 'POST', { password });
+
+        if (response.success) {
+            // บันทึก Session
+            sessionStorage.setItem('adminLoggedIn', 'true');
+            sessionStorage.setItem('loginTime', new Date().toISOString());
+            
+            showAlert('login-alert', '✅ เข้าสู่ระบบสำเร็จ!', 'success');
+            
+            setTimeout(() => {
+                showAdminView();
+                loadSystemStatus();
+            }, 1000);
+        } else {
+            showAlert('login-alert', `⚠️ ${response.message}`, 'error');
+            passwordInput.value = '';
+        }
+    } catch (error) {
+        showAlert('login-alert', '❌ เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
+    }
+}
+
+// ===== ฟังก์ชัน Logout =====
+function adminLogout() {
+    if (confirm('ต้องการออกจากระบบแอดมินหรือไม่?')) {
+        sessionStorage.removeItem('adminLoggedIn');
+        sessionStorage.removeItem('loginTime');
+        showLoginView();
+        showAlert('login-alert', 'ℹ️ ออกจากระบบเรียบร้อยแล้ว', 'info');
+    }
+}
+
+// ===== ตรวจสอบ Session =====
+function checkAdminSession() {
+    const isLoggedIn = sessionStorage.getItem('adminLoggedIn');
+    if (isLoggedIn === 'true') {
+        showAdminView();
+        loadSystemStatus();
+    } else {
+        showLoginView();
     }
 }
 
@@ -117,36 +142,6 @@ async function loadSystemStatus() {
         }
     } catch (error) {
         showAlert('admin-alert', '⚠️ ไม่สามารถโหลดสถานะระบบได้', 'error');
-    }
-}
-
-// ===== API: ลงทะเบียนผู้เข้าร่วม =====
-async function registerParticipant(event) {
-    event.preventDefault();
-    
-    const nameInput = document.getElementById('participant-name');
-    const name = nameInput.value.trim();
-
-    if (!name) {
-        showAlert('register-alert', '⚠️ กรุณากรอกชื่อของคุณ', 'error');
-        return;
-    }
-
-    try {
-        // เรียก POST API
-        const response = await callAPI('/register', 'POST', { name });
-
-        if (response.success) {
-            showAlert('register-alert', `✅ ${response.message}`, 'success');
-            nameInput.value = '';
-            
-            // บันทึกชื่อผู้ใช้ลง localStorage เพื่อใช้ตรวจสอบผลภายหลัง
-            localStorage.setItem('currentUser', name);
-        } else {
-            showAlert('register-alert', `⚠️ ${response.message}`, 'error');
-        }
-    } catch (error) {
-        showAlert('register-alert', '❌ เกิดข้อผิดพลาดในการลงทะเบียน', 'error');
     }
 }
 
@@ -173,12 +168,11 @@ async function removeParticipant(name) {
     }
 
     try {
-        // เรียก DELETE API
         const response = await callAPI(`/participants/${encodeURIComponent(name)}`, 'DELETE');
 
         if (response.success) {
             showAlert('admin-alert', `✅ ${response.message}`, 'success');
-            loadSystemStatus(); // โหลดข้อมูลใหม่
+            loadSystemStatus();
         } else {
             showAlert('admin-alert', `⚠️ ${response.message}`, 'error');
         }
@@ -195,25 +189,39 @@ async function drawNames() {
     }
 
     if (systemStatus.isDrawn) {
-        if (!confirm('คุณได้จับฉลากไปแล้ว ต้องการจับใหม่หรือไม่? (ข้อมูลเก่าจะถูกลบ)')) {
+        if (!confirm('คุณได้จับฉลากไปแล้ว ต้องการจับใหม่หรือไม่?\n\n⚠️ คำเตือน: ผลลัพธ์เก่าจะถูกลบและจับใหม่ทั้งหมด')) {
             return;
         }
     }
 
-    // แสดงสถานะกำลังประมวลผล
     const button = document.getElementById('draw-button');
     const originalText = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<span>กำลังจับฉลาก... <div class="loading"></div></span>';
 
     try {
-        // เรียก POST API
         const response = await callAPI('/draw', 'POST');
 
         if (response.success) {
-            showAlert('admin-alert', `✅ ${response.message}! ผู้เข้าร่วมสามารถกลับมาดูผลได้แล้ว`, 'success');
-            loadSystemStatus(); // โหลดข้อมูลใหม่
-            alert('🎉 จับฉลากสำเร็จ!\n\nแจ้งให้ผู้เข้าร่วมทุกคนกลับมาที่หน้าลงทะเบียนและกดปุ่ม "ตรวจสอบผลของฉัน" เพื่อดูผลการจับฉลาก');
+            showAlert('admin-alert', 
+                `✅ ${response.message}!<br><br>` +
+                `📢 แจ้งให้ผู้เข้าร่วมทุกคนเข้าไปที่:<br>` +
+                `<strong>${window.location.origin}/participant</strong><br>` +
+                `แล้วกดปุ่ม "ตรวจสอบผลของฉัน" เพื่อดูว่าได้ของใคร`, 
+                'success'
+            );
+            loadSystemStatus();
+            
+            // แสดง Alert แยก
+            setTimeout(() => {
+                alert(
+                    '🎉 จับฉลากสำเร็จ!\n\n' +
+                    '📢 แจ้งให้ผู้เข้าร่วมทุกคน:\n' +
+                    `1. เข้าไปที่ ${window.location.origin}/participant\n` +
+                    '2. กดปุ่ม "ตรวจสอบผลของฉัน"\n' +
+                    '3. ดูว่าตัวเองได้จับฉลากได้ของใคร'
+                );
+            }, 1000);
         } else {
             showAlert('admin-alert', `⚠️ ${response.message}`, 'error');
         }
@@ -225,61 +233,25 @@ async function drawNames() {
     }
 }
 
-// ===== API: ตรวจสอบผลของผู้ใช้ =====
-async function checkMyResult() {
-    const currentUser = localStorage.getItem('currentUser');
-    
-    if (!currentUser) {
-        showAlert('register-alert', '⚠️ กรุณาลงทะเบียนก่อนตรวจสอบผล', 'error');
-        return;
-    }
-
-    try {
-        // เรียก GET API
-        const response = await callAPI(`/result/${encodeURIComponent(currentUser)}`, 'GET');
-
-        if (response.success) {
-            showResult(response.data.giver, response.data.receiver);
-        } else {
-            showAlert('register-alert', `ℹ️ ${response.message}`, 'info');
-        }
-    } catch (error) {
-        showAlert('register-alert', '❌ เกิดข้อผิดพลาดในการตรวจสอบผล', 'error');
-    }
-}
-
-// ===== ฟังก์ชันแสดงผลลัพธ์ =====
-function showResult(giver, receiver) {
-    const content = document.getElementById('result-content');
-    content.innerHTML = `
-        <div class="result-card">
-            <h2>🎉 ผลการจับฉลาก</h2>
-            <p style="color: var(--color-text-dim); font-size: 1.2rem; margin: 1rem 0;">
-                คุณ <strong style="color: var(--color-text);">${giver}</strong> จะต้องซื้อของขวัญให้กับ
-            </p>
-            <div class="gift-receiver">🎁 ${receiver} 🎁</div>
-            <p style="color: var(--color-text-dim); margin-top: 1rem;">
-                กรุณาเก็บเป็นความลับ! 🤫
-            </p>
-        </div>
-    `;
-    switchView('result');
-}
-
 // ===== API: รีเซ็ทระบบ =====
 async function resetAll() {
-    if (!confirm('⚠️ คุณแน่ใจหรือไม่ที่จะรีเซ็ตทั้งหมด?\n\nข้อมูลทั้งหมดจะถูกลบ รวมถึง:\n- รายชื่อผู้เข้าร่วม\n- ผลการจับฉลาก\n\nการกระทำนี้ไม่สามารถยกเลิกได้')) {
+    if (!confirm(
+        '⚠️ คุณแน่ใจหรือไม่ที่จะรีเซ็ตทั้งหมด?\n\n' +
+        'ข้อมูลที่จะถูกลบ:\n' +
+        '• รายชื่อผู้เข้าร่วมทั้งหมด\n' +
+        '• ผลการจับฉลาก\n' +
+        '• สถานะของระบบ\n\n' +
+        'การกระทำนี้ไม่สามารถยกเลิกได้!'
+    )) {
         return;
     }
 
     try {
-        // เรียก DELETE API
         const response = await callAPI('/reset', 'DELETE');
 
         if (response.success) {
             showAlert('admin-alert', `✅ ${response.message}`, 'success');
-            localStorage.clear(); // ลบข้อมูลใน localStorage ด้วย
-            loadSystemStatus(); // โหลดข้อมูลใหม่
+            loadSystemStatus();
         } else {
             showAlert('admin-alert', `⚠️ ${response.message}`, 'error');
         }
@@ -297,9 +269,11 @@ function updateAdminView() {
     if (systemStatus.isDrawn) {
         statusText.textContent = 'จับฉลากแล้ว';
         statusText.style.color = '#4ADE80';
+        statusText.style.fontSize = '1.8rem';
     } else {
         statusText.textContent = 'รอจับฉลาก';
         statusText.style.color = 'var(--color-accent)';
+        statusText.style.fontSize = '2.5rem';
     }
 
     // อัพเดทรายชื่อ
@@ -308,15 +282,19 @@ function updateAdminView() {
         container.innerHTML = `
             <p style="color: var(--color-text-dim); text-align: center; padding: 2rem;">
                 ยังไม่มีผู้ลงทะเบียน
+                <br><br>
+                <small>แชร์ลิงค์นี้ให้พนักงาน:</small>
+                <br>
+                <strong style="color: var(--color-accent);">${window.location.origin}/participant</strong>
             </p>
         `;
     } else {
-        container.innerHTML = systemStatus.participants.map(name => `
+        container.innerHTML = systemStatus.participants.map((name, index) => `
             <div class="participant-item">
-                <span class="name">👤 ${name}</span>
+                <span class="name">${index + 1}. 👤 ${name}</span>
                 <button 
                     class="delete-btn" 
-                    onclick="removeParticipant('${name}')" 
+                    onclick="removeParticipant('${name.replace(/'/g, "\\'")}')" 
                     ${systemStatus.isDrawn ? 'disabled' : ''}
                 >
                     🗑️ ลบ
@@ -354,7 +332,6 @@ function createSnowflakes() {
 
 // ===== เริ่มต้นเมื่อโหลดหน้า =====
 window.addEventListener('DOMContentLoaded', async () => {
-    // สร้างเอฟเฟกต์หิมะตก
     createSnowflakes();
     
     // ตรวจสอบการเชื่อมต่อ Server
@@ -363,6 +340,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         console.log('✅ เชื่อมต่อ Server สำเร็จ');
     } catch (error) {
         console.error('❌ ไม่สามารถเชื่อมต่อ Server ได้');
-        alert('⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์\n\nกรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่ที่ http://localhost:3000');
+        showAlert('login-alert', 
+            '⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์<br>กรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่', 
+            'error'
+        );
     }
+    
+    // ตรวจสอบ Session
+    checkAdminSession();
 });
