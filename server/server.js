@@ -235,7 +235,7 @@ app.post('/api/draw', (req, res) => {
     }
 
     // สุ่มจับฉลาก
-    const receivers = generateDerangement(data.participants);
+    const receivers = generateDerangementNoTwoCycle(data.participants);
 
     if (!receivers) {
         return res.status(500).json({
