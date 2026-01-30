@@ -58,33 +58,37 @@ function writeData(data) {
     }
 }
 
-// ===== Derangement Algorithm สำหรับจับฉลาก =====
-function generateDerangement(arr) {
-    // สร้างสำเนาของอาร์เรย์เพื่อไม่ให้กระทบต้นฉบับ
+// Derangement Algorithm 
+function generateDerangementNoTwoCycle(arr) {
     let original = [...arr];
     let result = [...arr];
-    let maxAttempts = 1000; // จำกัดจำนวนครั้งในการลอง
+    let maxAttempts = 2000;
     let attempts = 0;
 
-    // วนลองสุ่มจนกว่าจะได้ผลลัพธ์ที่ถูกต้อง
     while (attempts < maxAttempts) {
-        // Fisher-Yates Shuffle Algorithm
+        // Shuffle
         for (let i = result.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            // Swap elements
             [result[i], result[j]] = [result[j], result[i]];
         }
 
-        // ตรวจสอบว่าไม่มีใครได้ของตัวเองหรือไม่
         let isValid = true;
+
         for (let i = 0; i < original.length; i++) {
+            // ❌ ห้ามได้ของตัวเอง
             if (original[i] === result[i]) {
+                isValid = false;
+                break;
+            }
+
+            // ❌ ห้าม 2-cycle
+            const j = original.indexOf(result[i]);
+            if (result[j] === original[i]) {
                 isValid = false;
                 break;
             }
         }
 
-        // ถ้าถูกต้อง ส่งผลลัพธ์กลับ
         if (isValid) {
             return result;
         }
@@ -92,7 +96,6 @@ function generateDerangement(arr) {
         attempts++;
     }
 
-    // ถ้าสุ่มไม่สำเร็จ (เกือบจะเป็นไปไม่ได้กับจำนวนคนมากกว่า 2)
     return null;
 }
 
