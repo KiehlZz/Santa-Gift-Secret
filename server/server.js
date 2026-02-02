@@ -62,11 +62,43 @@ function writeData(data) {
 }
 
 // ===== Derangement Algorithm สำหรับจับฉลาก =====
+// ป้องกัน: 1) ไม่มีใครได้ของตัวเอง 2) ไม่มี 2-cycle (A↔B)
+// ===== ฟังก์ชันช่วยวิเคราะห์ Cycles =====
+// Cycle = วงจรของการให้ของขวัญ เช่น A → B → C → A
+function findCycles(original, result) {
+    const visited = new Set();
+    const cycles = [];
+    
+    for (let i = 0; i < original.length; i++) {
+        if (visited.has(i)) continue;
+        
+        const cycle = [];
+        let current = i;
+        
+        // ติดตาม cycle จนกว่าจะกลับมาจุดเริ่มต้น
+        while (!visited.has(current)) {
+            visited.add(current);
+            cycle.push(original[current]);
+            
+            // หาคนต่อไปใน cycle
+            const receiver = result[current];
+            current = original.indexOf(receiver);
+        }
+        
+        if (cycle.length > 0) {
+            cycles.push(cycle);
+        }
+    }
+    
+    return cycles;
+}
+
+// ===== Derangement Algorithm สำหรับจับฉลาก =====
 function generateDerangement(arr) {
     // สร้างสำเนาของอาร์เรย์เพื่อไม่ให้กระทบต้นฉบับ
     let original = [...arr];
     let result = [...arr];
-    let maxAttempts = 1000; // จำกัดจำนวนครั้งในการลอง
+    let maxAttempts = 10000; // เพิ่มจำนวนครั้งเพราะเงื่อนไขเข้มข้นขึ้น
     let attempts = 0;
 
     // วนลองสุ่มจนกว่าจะได้ผลลัพธ์ที่ถูกต้อง
@@ -78,8 +110,10 @@ function generateDerangement(arr) {
             [result[i], result[j]] = [result[j], result[i]];
         }
 
-        // ตรวจสอบว่าไม่มีใครได้ของตัวเองหรือไม่
+        // ตรวจสอบเงื่อนไข 2 ข้อ
         let isValid = true;
+
+        // เงื่อนไขที่ 1: ไม่มีใครได้ของตัวเอง (Derangement)
         for (let i = 0; i < original.length; i++) {
             if (original[i] === result[i]) {
                 isValid = false;
@@ -87,15 +121,92 @@ function generateDerangement(arr) {
             }
         }
 
-        // ถ้าถูกต้อง ส่งผลลัพธ์กลับ
+        // เงื่อนไขที่ 2: ไม่มี 2-cycle (A ได้ของ B และ B ได้ของ A)
         if (isValid) {
+            for (let i = 0; i < original.length; i++) {
+                // หาว่า original[i] ให้ของใคร
+                const giver = original[i];
+                const receiver = result[i];
+                
+                // หาว่า receiver ให้ของใครกลับมา
+                const receiverIndex = original.indexOf(receiver);
+                const receiverGivesTo = result[receiverIndex];
+                
+                // ถ้า A ให้ B และ B ให้ A กลับมา = 2-cycle (ห้าม!)
+                if (receiverGivesTo === giver) {
+                    isValid = false;
+                    break;
+                }
+            }
+        }
+
+        // ถ้าผ่านทั้ง 2 เงื่อนไข ส่งผลลัพธ์กลับ
+        if (isValid) {
+            // แสดงข้อมูล Debug
+            console.log('\n🎉 =======================================');
+            console.log('🎉 จับฉลากสำเร็จ!');
+            console.log('🎉 =======================================');
+            console.log(`📊 จำนวนผู้เข้าร่วม: ${original.length} คน`);
+            console.log(`🎲 ใช้ความพยายาม: ${attempts + 1} ครั้ง`);
+            
+            // แสดงผลลัพธ์การจับฉลาก
+            console.log('\n📋 ผลการจับฉลาก:');
+            for (let i = 0; i < original.length; i++) {
+                console.log(`   ${i + 1}. ${original[i]} → ${result[i]}`);
+            }
+            
+            // วิเคราะห์และแสดง Cycles
+            const cycles = findCycles(original, result);
+            console.log('\n🔄 การวิเคราะห์ Cycles:');
+            console.log(`   📌 จำนวน Cycles ทั้งหมด: ${cycles.length}`);
+            
+            // นับจำนวน cycles แต่ละขนาด
+            const cycleSizes = {};
+            cycles.forEach(cycle => {
+                const size = cycle.length;
+                cycleSizes[size] = (cycleSizes[size] || 0) + 1;
+            });
+            
+            console.log('   📊 สถิติ Cycle:');
+            Object.keys(cycleSizes).sort((a, b) => b - a).forEach(size => {
+                const count = cycleSizes[size];
+                const plural = count > 1 ? 's' : '';
+                console.log(`      - ${size}-cycle: ${count} cycle${plural}`);
+            });
+            
+            // แสดงรายละเอียดแต่ละ cycle
+            console.log('\n   📝 รายละเอียด Cycles:');
+            cycles.forEach((cycle, idx) => {
+                const cycleStr = cycle.join(' → ') + ' → ' + cycle[0];
+                console.log(`      Cycle ${idx + 1} (${cycle.length} คน): ${cycleStr}`);
+            });
+            
+            // ตรวจสอบว่ามี 2-cycle หรือไม่ (ควรไม่มี)
+            const has2Cycle = cycles.some(c => c.length === 2);
+            if (has2Cycle) {
+                console.log('\n   ⚠️  คำเตือน: พบ 2-cycle! (ไม่ควรเกิดขึ้น)');
+            } else {
+                console.log('\n   ✅ ยืนยัน: ไม่มี 2-cycle (คู่ที่แลกของกัน)');
+            }
+            
+            console.log('🎉 =======================================\n');
+            
             return result;
         }
 
         attempts++;
     }
 
-    // ถ้าสุ่มไม่สำเร็จ (เกือบจะเป็นไปไม่ได้กับจำนวนคนมากกว่า 2)
+    // ถ้าสุ่มไม่สำเร็จหลังพยายามหลายครั้ง
+    console.error('\n❌ =======================================');
+    console.error('❌ ไม่สามารถจับฉลากได้!');
+    console.error('❌ =======================================');
+    console.error(`พยายามแล้ว ${maxAttempts} ครั้ง แต่ไม่สามารถหาผลลัพธ์ที่เหมาะสมได้`);
+    console.error('เงื่อนไข:');
+    console.error('  1. ไม่มีใครได้ของตัวเอง');
+    console.error('  2. ไม่มี 2-cycle (คู่ที่แลกของกัน)');
+    console.error('\nแนะนำ: ลองเพิ่มจำนวนผู้เข้าร่วมหรือปรับเงื่อนไข');
+    console.error('❌ =======================================\n');
     return null;
 }
 
@@ -209,6 +320,35 @@ app.get('/api/participants', (req, res) => {
         data: {
             participants: data.participants,
             count: data.participants.length
+        }
+    });
+});
+
+// ===== 3.5 GET /api/admin/results - ดูผลลัพธ์ทั้งหมด (Admin only) =====
+app.get('/api/admin/results', (req, res) => {
+    const data = readData();
+    
+    if (!data.isDrawn) {
+        return res.status(400).json({
+            success: false,
+            message: 'ยังไม่ได้จับฉลาก'
+        });
+    }
+    
+    // แปลง results เป็น array สำหรับแสดงผล
+    const resultsArray = [];
+    for (let giver in data.results) {
+        resultsArray.push({
+            giver: giver,
+            receiver: data.results[giver]
+        });
+    }
+    
+    res.json({
+        success: true,
+        data: {
+            results: resultsArray,
+            totalPairs: resultsArray.length
         }
     });
 });
