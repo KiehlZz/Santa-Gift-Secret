@@ -6,7 +6,7 @@ const path = require('path');
 
 // ===== สร้าง Express Application =====
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // ===== Middleware Configuration =====
 // CORS: อนุญาตให้ Client จากโดเมนอื่นเรียก API ได้
