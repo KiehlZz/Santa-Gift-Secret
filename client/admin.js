@@ -1,5 +1,5 @@
 // ===== การตั้งค่า API Base URL =====
-const API_BASE_URL = 'https://santa-gift-secret.onrender.com';
+const API_BASE_URL = window.location.origin;
 
 // ===== ตัวแปรสำหรับเก็บสถานะ =====
 let systemStatus = {
@@ -252,17 +252,10 @@ function displayResults(results) {
     `;
 }
 
-// ฟังก์ชันสุ่มสีตามลำดับ
 function getColorByIndex(index) {
     const colors = [
-        '#FFD700', // ทอง
-        '#4ADE80', // เขียว
-        '#60A5FA', // น้ำเงิน
-        '#F87171', // แดง
-        '#A78BFA', // ม่วง
-        '#FB923C', // ส้ม
-        '#34D399', // มิ้นท์
-        '#FBBF24', // เหลือง
+        '#FFD700', '#4ADE80', '#60A5FA', '#F87171',
+        '#A78BFA', '#FB923C', '#34D399', '#FBBF24'
     ];
     return colors[index % colors.length];
 }

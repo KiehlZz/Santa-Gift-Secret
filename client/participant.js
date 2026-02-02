@@ -1,5 +1,5 @@
 // ===== การตั้งค่า API Base URL =====
-const API_BASE_URL = 'https://santa-gift-secret.onrender.com';
+const API_BASE_URL = window.location.origin;
 
 // ===== ฟังก์ชันสำหรับเรียก API =====
 async function callAPI(endpoint, method = 'GET', body = null) {

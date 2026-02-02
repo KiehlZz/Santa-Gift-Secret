@@ -4,29 +4,32 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 นาที
-    max: 100 // จำกัด 100 requests ต่อ IP
-});
 
 // ===== สร้าง Express Application =====
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin2026';
+
+// ===== Rate Limiter =====
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 นาที
+    max: 100, // จำกัด 100 requests ต่อ IP
+    message: { success: false, message: 'Too many requests, please try again later.' }
+});
 
 // ===== Middleware Configuration =====
-// CORS: อนุญาตให้ Client จากโดเมนอื่นเรียก API ได้
-app.use(cors());
+// CORS Configuration
+app.use(cors({
+    origin: '*', // ในการ production ควรระบุ origin ที่ชัดเจน
+    methods: ['GET', 'POST', 'DELETE'],
+    credentials: true
+}));
 
-app.use('/api/', limiter);
+// Rate Limiting
+app.use(limiter);
 
-// Express JSON Parser: แปลง JSON ใน Request Body ให้เป็น Object
+// Express JSON Parser
 app.use(express.json());
-
-// ===== Routes ต้องมาก่อน Static Files =====
-// (จะเพิ่ม routes ด้านล่าง)
-
-// Static Files: เสิร์ฟไฟล์ HTML, CSS, JS จากโฟลเดอร์ client
-app.use(express.static(path.join(__dirname, '../client')));
 
 // ===== Path สำหรับไฟล์ Database =====
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -58,8 +61,6 @@ function readData() {
 // ===== ฟังก์ชันสำหรับเขียนข้อมูลลงไฟล์ =====
 function writeData(data) {
     try {
-        // แปลง Object เป็น JSON และเขียนลงไฟล์
-        // null, 2 = จัดรูปแบบ JSON ให้อ่านง่าย (indent 2 spaces)
         fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
         return true;
     } catch (error) {
@@ -102,25 +103,21 @@ function findCycles(original, result) {
 
 // ===== Derangement Algorithm สำหรับจับฉลาก =====
 function generateDerangement(arr) {
-    // สร้างสำเนาของอาร์เรย์เพื่อไม่ให้กระทบต้นฉบับ
     let original = [...arr];
     let result = [...arr];
-    let maxAttempts = 10000; // เพิ่มจำนวนครั้งเพราะเงื่อนไขเข้มข้นขึ้น
+    let maxAttempts = 10000;
     let attempts = 0;
 
-    // วนลองสุ่มจนกว่าจะได้ผลลัพธ์ที่ถูกต้อง
     while (attempts < maxAttempts) {
-        // Fisher-Yates Shuffle Algorithm
+        // Fisher-Yates Shuffle
         for (let i = result.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            // Swap elements
             [result[i], result[j]] = [result[j], result[i]];
         }
 
-        // ตรวจสอบเงื่อนไข 2 ข้อ
         let isValid = true;
 
-        // เงื่อนไขที่ 1: ไม่มีใครได้ของตัวเอง (Derangement)
+        // ตรวจสอบ: ไม่มีใครได้ของตัวเอง
         for (let i = 0; i < original.length; i++) {
             if (original[i] === result[i]) {
                 isValid = false;
@@ -128,18 +125,15 @@ function generateDerangement(arr) {
             }
         }
 
-        // เงื่อนไขที่ 2: ไม่มี 2-cycle (A ได้ของ B และ B ได้ของ A)
+        // ตรวจสอบ: ไม่มี 2-cycle
         if (isValid) {
             for (let i = 0; i < original.length; i++) {
-                // หาว่า original[i] ให้ของใคร
                 const giver = original[i];
                 const receiver = result[i];
                 
-                // หาว่า receiver ให้ของใครกลับมา
                 const receiverIndex = original.indexOf(receiver);
                 const receiverGivesTo = result[receiverIndex];
                 
-                // ถ้า A ให้ B และ B ให้ A กลับมา = 2-cycle (ห้าม!)
                 if (receiverGivesTo === giver) {
                     isValid = false;
                     break;
@@ -147,56 +141,13 @@ function generateDerangement(arr) {
             }
         }
 
-        // ถ้าผ่านทั้ง 2 เงื่อนไข ส่งผลลัพธ์กลับ
         if (isValid) {
-            // แสดงข้อมูล Debug
-            console.log('\n🎉 =======================================');
-            console.log('🎉 จับฉลากสำเร็จ!');
-            console.log('🎉 =======================================');
+            console.log('\n🎉 จับฉลากสำเร็จ!');
             console.log(`📊 จำนวนผู้เข้าร่วม: ${original.length} คน`);
             console.log(`🎲 ใช้ความพยายาม: ${attempts + 1} ครั้ง`);
             
-            // แสดงผลลัพธ์การจับฉลาก
-            console.log('\n📋 ผลการจับฉลาก:');
-            for (let i = 0; i < original.length; i++) {
-                console.log(`   ${i + 1}. ${original[i]} → ${result[i]}`);
-            }
-            
-            // วิเคราะห์และแสดง Cycles
             const cycles = findCycles(original, result);
-            console.log('\n🔄 การวิเคราะห์ Cycles:');
-            console.log(`   📌 จำนวน Cycles ทั้งหมด: ${cycles.length}`);
-            
-            // นับจำนวน cycles แต่ละขนาด
-            const cycleSizes = {};
-            cycles.forEach(cycle => {
-                const size = cycle.length;
-                cycleSizes[size] = (cycleSizes[size] || 0) + 1;
-            });
-            
-            console.log('   📊 สถิติ Cycle:');
-            Object.keys(cycleSizes).sort((a, b) => b - a).forEach(size => {
-                const count = cycleSizes[size];
-                const plural = count > 1 ? 's' : '';
-                console.log(`      - ${size}-cycle: ${count} cycle${plural}`);
-            });
-            
-            // แสดงรายละเอียดแต่ละ cycle
-            console.log('\n   📝 รายละเอียด Cycles:');
-            cycles.forEach((cycle, idx) => {
-                const cycleStr = cycle.join(' → ') + ' → ' + cycle[0];
-                console.log(`      Cycle ${idx + 1} (${cycle.length} คน): ${cycleStr}`);
-            });
-            
-            // ตรวจสอบว่ามี 2-cycle หรือไม่ (ควรไม่มี)
-            const has2Cycle = cycles.some(c => c.length === 2);
-            if (has2Cycle) {
-                console.log('\n   ⚠️  คำเตือน: พบ 2-cycle! (ไม่ควรเกิดขึ้น)');
-            } else {
-                console.log('\n   ✅ ยืนยัน: ไม่มี 2-cycle (คู่ที่แลกของกัน)');
-            }
-            
-            console.log('🎉 =======================================\n');
+            console.log(`🔄 จำนวน Cycles: ${cycles.length}`);
             
             return result;
         }
@@ -204,45 +155,25 @@ function generateDerangement(arr) {
         attempts++;
     }
 
-    // ถ้าสุ่มไม่สำเร็จหลังพยายามหลายครั้ง
-    console.error('\n❌ =======================================');
-    console.error('❌ ไม่สามารถจับฉลากได้!');
-    console.error('❌ =======================================');
-    console.error(`พยายามแล้ว ${maxAttempts} ครั้ง แต่ไม่สามารถหาผลลัพธ์ที่เหมาะสมได้`);
-    console.error('เงื่อนไข:');
-    console.error('  1. ไม่มีใครได้ของตัวเอง');
-    console.error('  2. ไม่มี 2-cycle (คู่ที่แลกของกัน)');
-    console.error('\nแนะนำ: ลองเพิ่มจำนวนผู้เข้าร่วมหรือปรับเงื่อนไข');
-    console.error('❌ =======================================\n');
+    console.error('❌ ไม่สามารถจับฉลากได้หลังจากพยายาม', maxAttempts, 'ครั้ง');
     return null;
 }
 
 // ========================================
-// ===== PAGE ROUTES (HTML Pages) =====
+// ===== API ENDPOINTS =====
 // ========================================
 
-// หน้าแรก - Redirect ไปหน้า Participant
-app.get('/', (req, res) => {
-    res.redirect('/participant');
+// Health Check
+app.get('/health', (req, res) => {
+    res.json({ 
+        success: true, 
+        message: 'Server is running',
+        timestamp: new Date().toISOString()
+    });
 });
-
-// หน้า Participant
-app.get('/participant', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/participant.html'));
-});
-
-// หน้า Admin
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/admin.html'));
-});
-
-// ========================================
-// ===== API ENDPOINTS (RESTful API) =====
-// ========================================
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // ===== API: ตรวจสอบรหัสผ่านแอดมิน =====
-app.post('/api/admin/verify', (req, res) => {
+app.post('/admin/verify', (req, res) => {
     const { password } = req.body;
 
     if (password === ADMIN_PASSWORD) {
@@ -258,8 +189,8 @@ app.post('/api/admin/verify', (req, res) => {
     }
 });
 
-// ===== 1. GET /api/status - ดูสถานะระบบ =====
-app.get('/api/status', (req, res) => {
+// ===== GET /status - ดูสถานะระบบ =====
+app.get('/status', (req, res) => {
     const data = readData();
     
     res.json({
@@ -272,11 +203,10 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-// ===== 2. POST /api/register - ลงทะเบียนผู้เข้าร่วม =====
-app.post('/api/register', (req, res) => {
+// ===== POST /register - ลงทะเบียนผู้เข้าร่วม =====
+app.post('/register', (req, res) => {
     const { name } = req.body;
 
-    // ตรวจสอบว่ามีการส่งชื่อมาหรือไม่
     if (!name || name.trim() === '') {
         return res.status(400).json({
             success: false,
@@ -284,10 +214,8 @@ app.post('/api/register', (req, res) => {
         });
     }
 
-    // อ่านข้อมูลปัจจุบัน
     const data = readData();
 
-    // ตรวจสอบว่าชื่อซ้ำหรือไม่
     if (data.participants.includes(name)) {
         return res.status(400).json({
             success: false,
@@ -295,10 +223,8 @@ app.post('/api/register', (req, res) => {
         });
     }
 
-    // เพิ่มชื่อเข้าไป
     data.participants.push(name);
     
-    // บันทึกลงไฟล์
     if (writeData(data)) {
         res.status(201).json({
             success: true,
@@ -316,8 +242,8 @@ app.post('/api/register', (req, res) => {
     }
 });
 
-// ===== 3. GET /api/participants - ดูรายชื่อผู้เข้าร่วมทั้งหมด =====
-app.get('/api/participants', (req, res) => {
+// ===== GET /participants - ดูรายชื่อผู้เข้าร่วมทั้งหมด =====
+app.get('/participants', (req, res) => {
     const data = readData();
     
     res.json({
@@ -329,8 +255,8 @@ app.get('/api/participants', (req, res) => {
     });
 });
 
-// ===== 3.5 GET /api/admin/results - ดูผลลัพธ์ทั้งหมด (Admin only) =====
-app.get('/api/admin/results', (req, res) => {
+// ===== GET /admin/results - ดูผลลัพธ์ทั้งหมด (Admin only) =====
+app.get('/admin/results', (req, res) => {
     const data = readData();
     
     if (!data.isDrawn) {
@@ -340,7 +266,6 @@ app.get('/api/admin/results', (req, res) => {
         });
     }
     
-    // แปลง results เป็น array สำหรับแสดงผล
     const resultsArray = [];
     for (let giver in data.results) {
         resultsArray.push({
@@ -358,12 +283,11 @@ app.get('/api/admin/results', (req, res) => {
     });
 });
 
-// ===== 4. DELETE /api/participants/:name - ลบผู้เข้าร่วม =====
-app.delete('/api/participants/:name', (req, res) => {
+// ===== DELETE /participants/:name - ลบผู้เข้าร่วม =====
+app.delete('/participants/:name', (req, res) => {
     const { name } = req.params;
     const data = readData();
 
-    // ตรวจสอบว่าจับฉลากแล้วหรือยัง
     if (data.isDrawn) {
         return res.status(400).json({
             success: false,
@@ -371,7 +295,6 @@ app.delete('/api/participants/:name', (req, res) => {
         });
     }
 
-    // หาตำแหน่งของชื่อ
     const index = data.participants.indexOf(name);
     
     if (index === -1) {
@@ -381,10 +304,8 @@ app.delete('/api/participants/:name', (req, res) => {
         });
     }
 
-    // ลบชื่อออก
     data.participants.splice(index, 1);
     
-    // บันทึกลงไฟล์
     if (writeData(data)) {
         res.json({
             success: true,
@@ -401,11 +322,10 @@ app.delete('/api/participants/:name', (req, res) => {
     }
 });
 
-// ===== 5. POST /api/draw - จับฉลาก =====
-app.post('/api/draw', (req, res) => {
+// ===== POST /draw - จับฉลาก =====
+app.post('/draw', (req, res) => {
     const data = readData();
 
-    // ตรวจสอบจำนวนผู้เข้าร่วม
     if (data.participants.length < 2) {
         return res.status(400).json({
             success: false,
@@ -413,7 +333,6 @@ app.post('/api/draw', (req, res) => {
         });
     }
 
-    // สุ่มจับฉลาก
     const receivers = generateDerangement(data.participants);
 
     if (!receivers) {
@@ -423,13 +342,11 @@ app.post('/api/draw', (req, res) => {
         });
     }
 
-    // สร้างผลลัพธ์เป็น Object { ผู้ให้: ผู้รับ }
     const results = {};
     data.participants.forEach((giver, index) => {
         results[giver] = receivers[index];
     });
 
-    // บันทึกผลลัพธ์
     data.results = results;
     data.isDrawn = true;
 
@@ -450,12 +367,11 @@ app.post('/api/draw', (req, res) => {
     }
 });
 
-// ===== 6. GET /api/result/:name - ดูผลการจับฉลากของแต่ละคน =====
-app.get('/api/result/:name', (req, res) => {
+// ===== GET /result/:name - ดูผลการจับฉลากของแต่ละคน =====
+app.get('/result/:name', (req, res) => {
     const { name } = req.params;
     const data = readData();
 
-    // ตรวจสอบว่าจับฉลากแล้วหรือยัง
     if (!data.isDrawn) {
         return res.status(400).json({
             success: false,
@@ -463,7 +379,6 @@ app.get('/api/result/:name', (req, res) => {
         });
     }
 
-    // ตรวจสอบว่าชื่อนี้มีในระบบหรือไม่
     if (!data.participants.includes(name)) {
         return res.status(404).json({
             success: false,
@@ -471,7 +386,6 @@ app.get('/api/result/:name', (req, res) => {
         });
     }
 
-    // ดึงผลลัพธ์
     const receiver = data.results[name];
 
     res.json({
@@ -483,8 +397,8 @@ app.get('/api/result/:name', (req, res) => {
     });
 });
 
-// ===== 7. DELETE /api/reset - รีเซ็ตทั้งหมด =====
-app.delete('/api/reset', (req, res) => {
+// ===== DELETE /reset - รีเซ็ตทั้งหมด =====
+app.delete('/reset', (req, res) => {
     const initialData = {
         participants: [],
         results: {},
@@ -504,8 +418,23 @@ app.delete('/api/reset', (req, res) => {
     }
 });
 
-// ===== Error Handling Middleware =====
-// จัดการข้อผิดพลาดที่ไม่ได้คาดคิด
+// ===== Static Files - ต้องมาหลัง API routes =====
+app.use(express.static(path.join(__dirname, '../client')));
+
+// ===== Serve HTML Files =====
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/participant.html'));
+});
+
+app.get('/participant', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/participant.html'));
+});
+
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/admin.html'));
+});
+
+// ===== Error Handling =====
 app.use((err, req, res, next) => {
     console.error('Error:', err);
     res.status(500).json({
@@ -515,7 +444,6 @@ app.use((err, req, res, next) => {
 });
 
 // ===== 404 Handler =====
-// จัดการ URL ที่ไม่มีอยู่ในระบบ
 app.use((req, res) => {
     res.status(404).json({
         success: false,
@@ -524,21 +452,11 @@ app.use((req, res) => {
 });
 
 // ===== เริ่มต้น Server =====
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🎄 =======================================`);
     console.log(`🎄 Secret Santa Server กำลังทำงาน!`);
     console.log(`🎄 =======================================\n`);
-    console.log(`👥 สำหรับพนักงาน:    http://localhost:${PORT}/participant`);
-    console.log(`🔐 สำหรับแอดมิน:     http://localhost:${PORT}/admin`);
-    console.log(`📱 รหัสผ่านแอดมิน:   ${ADMIN_PASSWORD}\n`);
-    console.log(`📋 API Endpoints:`);
-    console.log(`   POST   /api/admin/verify        - ตรวจสอบรหัสแอดมิน`);
-    console.log(`   GET    /api/status              - ดูสถานะระบบ`);
-    console.log(`   POST   /api/register            - ลงทะเบียนผู้เข้าร่วม`);
-    console.log(`   GET    /api/participants        - ดูรายชื่อทั้งหมด`);
-    console.log(`   DELETE /api/participants/:name  - ลบผู้เข้าร่วม`);
-    console.log(`   POST   /api/draw                - จับฉลาก`);
-    console.log(`   GET    /api/result/:name        - ดูผลการจับฉลาก`);
-    console.log(`   DELETE /api/reset               - รีเซ็ตระบบ`);
-    console.log(`\n🎄 =======================================\n`);
+    console.log(`🌐 Port: ${PORT}`);
+    console.log(`🔐 Admin Password: ${ADMIN_PASSWORD}`);
+    console.log(`🎄 =======================================\n`);
 });
