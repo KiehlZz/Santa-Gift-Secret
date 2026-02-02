@@ -3,6 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 นาที
+    max: 100 // จำกัด 100 requests ต่อ IP
+});
 
 // ===== สร้าง Express Application =====
 const app = express();
@@ -11,6 +16,8 @@ const PORT = process.env.PORT || 3000;
 // ===== Middleware Configuration =====
 // CORS: อนุญาตให้ Client จากโดเมนอื่นเรียก API ได้
 app.use(cors());
+
+app.use('/api/', limiter);
 
 // Express JSON Parser: แปลง JSON ใน Request Body ให้เป็น Object
 app.use(express.json());
@@ -232,9 +239,7 @@ app.get('/admin', (req, res) => {
 // ========================================
 // ===== API ENDPOINTS (RESTful API) =====
 // ========================================
-
-// ===== รหัสผ่านแอดมิน (ในโปรเจคจริงควรเก็บใน environment variable) =====
-const ADMIN_PASSWORD = 'admin2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // ===== API: ตรวจสอบรหัสผ่านแอดมิน =====
 app.post('/api/admin/verify', (req, res) => {
