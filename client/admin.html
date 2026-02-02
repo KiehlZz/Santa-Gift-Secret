@@ -112,6 +112,38 @@
                     </p>
                 </div>
 
+                <!-- แสดงผลลัพธ์การจับฉลาก (Admin only) -->
+                <div id="results-section" style="margin-top: 2rem; display: none;">
+                    <div style="border-top: 2px solid var(--color-accent); padding-top: 2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="color: var(--color-accent); margin: 0;">🎁 ผลการจับฉลาก</h3>
+                            <button 
+                                onclick="drawNames()" 
+                                class="btn"
+                                style="background: rgba(255, 215, 0, 0.2); color: var(--color-accent); border: 1px solid var(--color-accent); padding: 0.8rem 1.5rem;"
+                            >
+                                <span>🔄 Re-Draw (จับใหม่)</span>
+                            </button>
+                        </div>
+                        <p style="color: var(--color-text-dim); font-size: 0.9rem; margin-bottom: 1rem;">
+                            ⚠️ ข้อมูลนี้เห็นได้เฉพาะแอดมินเท่านั้น กรุณาเก็บเป็นความลับ
+                        </p>
+                        
+                        <div id="results-container">
+                            <p style="color: var(--color-text-dim); text-align: center; padding: 2rem;">
+                                กำลังโหลดผลลัพธ์...
+                            </p>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(255, 215, 0, 0.1); border-radius: 10px; border: 1px solid rgba(255, 215, 0, 0.3);">
+                            <p style="color: var(--color-accent); font-size: 0.9rem; margin: 0;">
+                                💡 <strong>เคล็ดลับ:</strong> ถ้าผลการจับฉลากไม่พอใจ (เช่น หัวหน้าได้ของหัวหน้า หรือมีคู่ที่ไม่เหมาะสม) 
+                                สามารถกดปุ่ม "🔄 Re-Draw" เพื่อจับฉลากใหม่ได้ทันที
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ปุ่มรีเซ็ต -->
                 <div style="margin-top: 2rem; text-align: center;">
                     <button 

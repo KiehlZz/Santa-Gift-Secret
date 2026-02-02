@@ -139,10 +139,132 @@ async function loadSystemStatus() {
         if (response.success) {
             systemStatus = response.data;
             updateAdminView();
+            
+            // ถ้าจับฉลากแล้ว โหลดผลลัพธ์ด้วย
+            if (systemStatus.isDrawn) {
+                loadResults();
+            } else {
+                // ซ่อนส่วนผลลัพธ์
+                document.getElementById('results-section').style.display = 'none';
+            }
         }
     } catch (error) {
         showAlert('admin-alert', '⚠️ ไม่สามารถโหลดสถานะระบบได้', 'error');
     }
+}
+
+// ===== API: โหลดผลลัพธ์การจับฉลาก (Admin only) =====
+async function loadResults() {
+    try {
+        const response = await callAPI('/admin/results', 'GET');
+        
+        if (response.success) {
+            displayResults(response.data.results);
+            // แสดงส่วนผลลัพธ์
+            document.getElementById('results-section').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading results:', error);
+        // ไม่แสดง error เพราะอาจเป็นกรณียังไม่ได้จับฉลาก
+    }
+}
+
+// ===== ฟังก์ชันแสดงผลลัพธ์ =====
+function displayResults(results) {
+    const container = document.getElementById('results-container');
+    
+    if (!results || results.length === 0) {
+        container.innerHTML = `
+            <p style="color: var(--color-text-dim); text-align: center; padding: 2rem;">
+                ไม่มีผลลัพธ์
+            </p>
+        `;
+        return;
+    }
+    
+    // เรียงตามชื่อ
+    results.sort((a, b) => a.giver.localeCompare(b.giver, 'th'));
+    
+    container.innerHTML = `
+        <div style="display: grid; gap: 0.5rem;">
+            ${results.map((pair, index) => `
+                <div style="
+                    background: rgba(0, 0, 0, 0.3);
+                    padding: 1rem;
+                    border-radius: 10px;
+                    border-left: 4px solid ${getColorByIndex(index)};
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                ">
+                    <div style="
+                        background: rgba(255, 255, 255, 0.1);
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: 700;
+                        color: ${getColorByIndex(index)};
+                    ">
+                        ${index + 1}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">
+                            👤 ${pair.giver}
+                        </div>
+                        <div style="color: var(--color-text-dim); font-size: 0.9rem;">
+                            จะต้องได้รับของขวัญจาก
+                        </div>
+                    </div>
+                    <div style="
+                        font-size: 1.5rem;
+                        color: var(--color-accent);
+                        font-weight: 700;
+                    ">
+                        →
+                    </div>
+                    <div style="
+                        background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1));
+                        padding: 0.8rem 1.5rem;
+                        border-radius: 10px;
+                        border: 1px solid rgba(255, 215, 0, 0.3);
+                    ">
+                        <div style="font-size: 1.2rem; font-weight: 700; color: var(--color-accent);">
+                            🎁 ${pair.receiver}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        <div style="margin-top: 1.5rem; text-align: center;">
+            <div style="display: inline-block; background: rgba(74, 222, 128, 0.1); padding: 1rem 2rem; border-radius: 10px; border: 1px solid rgba(74, 222, 128, 0.3);">
+                <div style="color: #4ADE80; font-size: 0.9rem; margin-bottom: 0.3rem;">
+                    ✅ การจับฉลากสมบูรณ์
+                </div>
+                <div style="color: var(--color-text); font-size: 1.5rem; font-weight: 700;">
+                    ${results.length} คู่
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ฟังก์ชันสุ่มสีตามลำดับ
+function getColorByIndex(index) {
+    const colors = [
+        '#FFD700', // ทอง
+        '#4ADE80', // เขียว
+        '#60A5FA', // น้ำเงิน
+        '#F87171', // แดง
+        '#A78BFA', // ม่วง
+        '#FB923C', // ส้ม
+        '#34D399', // มิ้นท์
+        '#FBBF24', // เหลือง
+    ];
+    return colors[index % colors.length];
 }
 
 // ===== API: โหลดรายชื่อผู้เข้าร่วม =====
@@ -189,7 +311,7 @@ async function drawNames() {
     }
 
     if (systemStatus.isDrawn) {
-        if (!confirm('คุณได้จับฉลากไปแล้ว ต้องการจับใหม่หรือไม่?\n\n⚠️ คำเตือน: ผลลัพธ์เก่าจะถูกลบและจับใหม่ทั้งหมด')) {
+        if (!confirm('คุณได้จับฉลากไปแล้ว ต้องการจับใหม่หรือไม่?\n\n⚠️ คำเตือน: ผลลัพธ์เก่าจะถูกลบและจับใหม่ทั้งหมด\n\nผู้เข้าร่วมที่เคยดูผลไปแล้วจะต้องกลับมาดูผลใหม่อีกครั้ง')) {
             return;
         }
     }
@@ -203,23 +325,36 @@ async function drawNames() {
         const response = await callAPI('/draw', 'POST');
 
         if (response.success) {
+            // แสดงข้อความสำเร็จ
             showAlert('admin-alert', 
                 `✅ ${response.message}!<br><br>` +
-                `📢 แจ้งให้ผู้เข้าร่วมทุกคนเข้าไปที่:<br>` +
-                `<strong>${window.location.origin}/participant</strong><br>` +
-                `แล้วกดปุ่ม "ตรวจสอบผลของฉัน" เพื่อดูว่าได้ของใคร`, 
+                `📊 ผลการจับฉลากแสดงด้านล่าง กรุณาตรวจสอบว่าเหมาะสมหรือไม่<br>` +
+                `ถ้าไม่เหมาะสม (เช่น หัวหน้าได้ของหัวหน้า) สามารถกด "Re-Draw" ได้`, 
                 'success'
             );
-            loadSystemStatus();
             
-            // แสดง Alert แยก
+            // โหลดสถานะและผลลัพธ์ใหม่
+            await loadSystemStatus();
+            await loadResults();
+            
+            // เลื่อนลงไปที่ส่วนผลลัพธ์
+            setTimeout(() => {
+                const resultsSection = document.getElementById('results-section');
+                if (resultsSection) {
+                    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 500);
+            
+            // แสดง Alert เพิ่มเติม
             setTimeout(() => {
                 alert(
                     '🎉 จับฉลากสำเร็จ!\n\n' +
-                    '📢 แจ้งให้ผู้เข้าร่วมทุกคน:\n' +
-                    `1. เข้าไปที่ ${window.location.origin}/participant\n` +
-                    '2. กดปุ่ม "ตรวจสอบผลของฉัน"\n' +
-                    '3. ดูว่าตัวเองได้จับฉลากได้ของใคร'
+                    '📊 กรุณาตรวจสอบผลการจับฉลากด้านล่าง\n\n' +
+                    '✅ ถ้าผลเหมาะสม:\n' +
+                    `   แจ้งให้ผู้เข้าร่วมเข้าไปที่ ${window.location.origin}/participant\n` +
+                    '   และกดปุ่ม "ตรวจสอบผลของฉัน"\n\n' +
+                    '🔄 ถ้าผลไม่เหมาะสม:\n' +
+                    '   กดปุ่ม "Re-Draw" เพื่อจับใหม่ได้ทันที'
                 );
             }, 1000);
         } else {
@@ -251,6 +386,10 @@ async function resetAll() {
 
         if (response.success) {
             showAlert('admin-alert', `✅ ${response.message}`, 'success');
+            
+            // ซ่อนส่วนผลลัพธ์
+            document.getElementById('results-section').style.display = 'none';
+            
             loadSystemStatus();
         } else {
             showAlert('admin-alert', `⚠️ ${response.message}`, 'error');
